@@ -501,6 +501,8 @@ export class SettingTab extends PluginSettingTab {
   }
 
   private getDebugInfo(): string {
+    // 单个 URL 的脱敏：保留协议与端口，host 仅保留首尾字符
+    // Mask a single URL: keep protocol and port, replace host middle with ***
     const maskValue = (val: string) => {
       if (!val) return ""
       const parts = val.split("://")
@@ -525,18 +527,55 @@ export class SettingTab extends PluginSettingTab {
       return protocol + maskedHost + port
     }
 
-    // 历史版本可能在 data.json 中残留 wsApi 字段（不在 PluginSettings 类型中），
-    // 也需要做脱敏处理，避免通过 Debug 信息泄漏。
-    const legacyWsApi = (this.plugin.settings as unknown as { wsApi?: string }).wsApi
-    return JSON.stringify(
-      {
-        settings: {
-          ...this.plugin.settings,
-          api: maskValue(this.plugin.settings.api),
-          apiToken: this.plugin.settings.apiToken ? "***HIDDEN***" : "",
-          ...(legacyWsApi !== undefined ? { wsApi: maskValue(legacyWsApi) } : {}),
-        },
-        runtimeInfo: {
+    // 多行 URL 字段（如 debugRemoteUrls）逐行脱敏，保留非 URL 行原样
+    // Mask multi-line URL fields line-by-line, leaving non-URL lines untouched
+    const maskMaybeMultiline = (val: string) => {
+      if (!val.includes("\n")) return maskValue(val)
+      return val
+        .split("\n")
+        .map((line) => (line.includes("://") ? maskValue(line) : line))
+        .join("\n")
+    }
+
+    // 兜底敏感扫描：在显式脱敏之外，递归扫描整个 debug 对象
+    // - 键名命中 SECRET_KEY_RE 的字符串字段：整体替换为 ***HIDDEN***
+    // - 键名命中 URL_KEY_RE 且值含 "://" 的字符串字段：用 maskValue 脱敏
+    // 目的：当 PluginSettings 新增字段、或老版本残留字段（如历史 wsApi）出现时，
+    // 即使开发者忘记在显式列表里添加脱敏，也能自动覆盖，避免 #172 类信息泄漏。
+    // Defense-in-depth: recursive sanitize as a safety net beyond explicit masking.
+    const SECRET_KEY_RE = /token|secret|password|passphrase|credential|apikey/i
+    const URL_KEY_RE = /api|url|endpoint|gateway|host|origin/i
+    const sanitize = (node: unknown): unknown => {
+      if (Array.isArray(node)) return node.map(sanitize)
+      if (node && typeof node === "object") {
+        const out: Record<string, unknown> = {}
+        for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+          if (typeof v === "string" && v.length > 0) {
+            if (SECRET_KEY_RE.test(k)) {
+              out[k] = "***HIDDEN***"
+            } else if (URL_KEY_RE.test(k) && v.includes("://")) {
+              out[k] = maskMaybeMultiline(v)
+            } else {
+              out[k] = v
+            }
+          } else {
+            out[k] = sanitize(v)
+          }
+        }
+        return out
+      }
+      return node
+    }
+
+    // 显式脱敏作为主防线：意图清晰，且与 sanitize 形成双层保护（操作幂等）
+    // Explicit masking is the primary line; sanitize is the safety net.
+    const debugInfo = {
+      settings: {
+        ...this.plugin.settings,
+        api: maskValue(this.plugin.settings.api),
+        apiToken: this.plugin.settings.apiToken ? "***HIDDEN***" : "",
+      },
+      runtimeInfo: {
           runApi: maskValue(this.plugin.runApi),
           runWsApi: maskValue(this.plugin.runWsApi),
           isInitSync: this.plugin.localStorageManager.getMetadata("isInitSync"),
@@ -582,10 +621,9 @@ export class SettingTab extends PluginSettingTab {
           obsidianVersion: (this.app as unknown as { version: string }).version || "unknown",
         },
         pluginVersion: this.plugin.manifest.version,
-      },
-      null,
-      4,
-    )
+    }
+
+    return JSON.stringify(sanitize(debugInfo), null, 4)
   }
 
   private renderDebugTools(set: HTMLElement, isHomePage: boolean = false) {
