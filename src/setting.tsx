@@ -525,12 +525,16 @@ export class SettingTab extends PluginSettingTab {
       return protocol + maskedHost + port
     }
 
+    // 历史版本可能在 data.json 中残留 wsApi 字段（不在 PluginSettings 类型中），
+    // 也需要做脱敏处理，避免通过 Debug 信息泄漏。
+    const legacyWsApi = (this.plugin.settings as unknown as { wsApi?: string }).wsApi
     return JSON.stringify(
       {
         settings: {
           ...this.plugin.settings,
           api: maskValue(this.plugin.settings.api),
           apiToken: this.plugin.settings.apiToken ? "***HIDDEN***" : "",
+          ...(legacyWsApi !== undefined ? { wsApi: maskValue(legacyWsApi) } : {}),
         },
         runtimeInfo: {
           runApi: maskValue(this.plugin.runApi),
