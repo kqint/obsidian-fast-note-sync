@@ -23,6 +23,7 @@ import { MenuManager } from "./lib/menu_manager";
 import { LockManager } from "./lib/lock_manager";
 import { handleSync } from "./lib/operator";
 import { HttpApiService } from "./lib/api";
+import { ConfirmModal } from "./views/confirm-modal";
 import { $ } from "./i18n/lang";
 
 
@@ -61,6 +62,11 @@ export default class FastSync extends Plugin {
   folderSnapshotManager: FolderSnapshotManager // 文件夹快照管理器
 
   clipboardReadTip: string = "" // 剪贴板读取提示信息
+
+  // data.json 中检测到的、不属于当前 PluginSettings 类型的旧字段（例如历史版本残留的 wsApi）
+  // Legacy fields detected in data.json that are no longer part of the current PluginSettings
+  // (e.g. residual wsApi from older versions). User is prompted whether to clean them up.
+  legacyUnknownFields: string[] = []
 
   isFirstSync: boolean = false // 是否为首次同步
   isWatchEnabled: boolean = true // 是否启用文件监听
@@ -387,6 +393,13 @@ export default class FastSync extends Plugin {
       // UI manager: ribbon was already created before onLayoutReady; finish the rest here
       this.menuManager.init()
 
+      // 3.1 如果检测到 data.json 中残留的旧字段，弹窗询问用户是否清理。
+      //     延迟一点显示，避免和启动时的其他通知挤在一起。
+      // Prompt user about legacy fields in data.json (slight delay to avoid notification jam).
+      if (this.legacyUnknownFields.length > 0) {
+        window.setTimeout(() => this.promptCleanupLegacySettings(), 1500)
+      }
+
       // 注册 WebSocket 状态监听 (Register WebSocket status listener)
       this.websocket.addStatusListener((status: boolean) => this.updateRibbonIcon(status))
 
@@ -658,6 +671,20 @@ export default class FastSync extends Plugin {
       hasMigration = true
     }
 
+    // 6. 检测 data.json 中遗留的未知字段（例如历史版本删除字段后残留的 wsApi）
+    //    这些字段会被 ...this.plugin.settings 透传到 Debug 输出和持久化中。
+    //    此处仅做检测和记录，实际清理需用户在 onLayoutReady 时通过弹窗确认。
+    //
+    //    注意：必须基于 this.settings 而非原始 data 来检测，否则上文已显式处理
+    //    的 legacy 字段（如 configExclude、showSyncNotice）会被误报——它们已经
+    //    从 this.settings 中 delete 掉，并将在下一次 saveSettings 时从磁盘消失。
+    //
+    // Detect legacy unknown fields that survive into this.settings (e.g. wsApi).
+    // Use this.settings (post-migration) as the source so the explicitly-handled
+    // legacy keys above are not falsely reported.
+    const knownKeys = new Set(Object.keys(DEFAULT_SETTINGS))
+    this.legacyUnknownFields = Object.keys(this.settings).filter((k) => !knownKeys.has(k))
+
     if (hasMigration) {
       await this.saveSettings()
     }
@@ -667,6 +694,48 @@ export default class FastSync extends Plugin {
     dump("onExternalSettingsChange")
     await this.loadSettings()
     await this.saveSettings()
+  }
+
+  /**
+   * 弹窗询问用户是否清理 data.json 中检测到的旧字段。
+   * 用户可能仍在配套的旧版本服务端上，因此默认不主动清理，由用户决定。
+   *
+   * Prompt the user whether to clean up legacy fields detected in data.json.
+   * Cleanup is opt-in because the user may still be running an older companion
+   * server that expects these fields.
+   */
+  promptCleanupLegacySettings() {
+    if (!this.legacyUnknownFields || this.legacyUnknownFields.length === 0) return
+
+    const fields = this.legacyUnknownFields
+    const fieldList = fields.join(", ")
+    const message = $("setting.cleanup.legacy_desc", { fields: fieldList })
+
+    new ConfirmModal(
+      this.app,
+      $("setting.cleanup.legacy_title"),
+      message,
+      () => {
+        // 已确认：从内存设置中删除这些字段，再写盘
+        // Confirmed: remove these fields from in-memory settings and persist
+        const settings = this.settings as unknown as Record<string, unknown>
+        for (const f of fields) {
+          delete settings[f]
+        }
+        this.legacyUnknownFields = []
+        void (async () => {
+          try {
+            await this.saveSettings()
+            showSyncNotice($("setting.cleanup.legacy_success"))
+          } catch (e) {
+            dumpError("[fast-note-sync] cleanup legacy settings failed:", e)
+          }
+        })()
+      },
+      $("setting.cleanup.legacy_confirm"),
+      $("setting.cleanup.legacy_keep"),
+      true,
+    ).open()
   }
 
   async saveSettings() {

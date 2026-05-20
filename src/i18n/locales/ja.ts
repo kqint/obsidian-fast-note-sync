@@ -438,4 +438,9 @@ export default {
   "setting.debug.version_installing_notice": "指定バージョンのプラグインをインストールしています...",
   "setting.debug.version_install_success": "プラグインのインストールとリロードが成功しました",
   "setting.debug.version_install_fail": "プラグインのインストールに失敗しました",
+  "setting.cleanup.legacy_title": "古い設定の残存を検出",
+  "setting.cleanup.legacy_desc": "data.json に、現バージョンでは使用されない以下のフィールドが見つかりました：${fields}。クリーンアップするとこれらのフィールドはローカル設定から削除されます。これらのフィールドに依存する古いサーバーをまだ使用している場合は「保持」を選択してください。不明な場合は保持が安全です。",
+  "setting.cleanup.legacy_confirm": "クリーンアップ",
+  "setting.cleanup.legacy_keep": "保持",
+  "setting.cleanup.legacy_success": "古い残存設定をクリーンアップしました",
 };

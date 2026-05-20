@@ -438,4 +438,9 @@ export default {
   "setting.debug.version_installing_notice": "正在安装指定版本插件...",
   "setting.debug.version_install_success": "插件安装并重载成功",
   "setting.debug.version_install_fail": "插件安装失败",
+  "setting.cleanup.legacy_title": "检测到旧版本残留设置",
+  "setting.cleanup.legacy_desc": "在 data.json 中检测到以下不被当前版本使用的字段：${fields}。清理后会从本地设置中移除这些字段。如果你仍在使用依赖这些字段的旧版服务端，请选择「保留」；不确定时建议保留。",
+  "setting.cleanup.legacy_confirm": "清理",
+  "setting.cleanup.legacy_keep": "保留",
+  "setting.cleanup.legacy_success": "旧版残留设置已清理",
 };
