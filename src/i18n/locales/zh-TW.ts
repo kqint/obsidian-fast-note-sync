@@ -438,4 +438,9 @@ export default {
   "setting.debug.version_installing_notice": "正在安裝指定版本插件...",
   "setting.debug.version_install_success": "插件安裝並重載成功",
   "setting.debug.version_install_fail": "插件安裝失敗",
+  "setting.cleanup.legacy_title": "偵測到舊版殘留設定",
+  "setting.cleanup.legacy_desc": "在 data.json 中偵測到以下不被目前版本使用的欄位：${fields}。清理後會從本地設定中移除這些欄位。如果你仍在使用依賴這些欄位的舊版服務端，請選擇「保留」；不確定時建議保留。",
+  "setting.cleanup.legacy_confirm": "清理",
+  "setting.cleanup.legacy_keep": "保留",
+  "setting.cleanup.legacy_success": "舊版殘留設定已清理",
 };

@@ -438,4 +438,9 @@ export default {
   "setting.debug.version_installing_notice": "Installing specified version plugin...",
   "setting.debug.version_install_success": "Plugin installed and reloaded successfully",
   "setting.debug.version_install_fail": "Plugin installation failed",
+  "setting.cleanup.legacy_title": "Obsolete settings detected",
+  "setting.cleanup.legacy_desc": "Found fields in data.json that are no longer used by this version: ${fields}. Cleaning up removes them from local settings. If you are still using an older companion server that depends on these fields, choose Keep. If unsure, Keep is the safer choice.",
+  "setting.cleanup.legacy_confirm": "Clean up",
+  "setting.cleanup.legacy_keep": "Keep",
+  "setting.cleanup.legacy_success": "Obsolete settings cleaned up",
 };

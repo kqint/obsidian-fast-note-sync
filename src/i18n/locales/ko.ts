@@ -438,4 +438,9 @@ export default {
   "setting.debug.version_installing_notice": "지정 버전 플러그인 설치 중...",
   "setting.debug.version_install_success": "플러그인 설치 및 재로드 성공",
   "setting.debug.version_install_fail": "플러그인 설치 실패",
+  "setting.cleanup.legacy_title": "구버전 잔존 설정 감지",
+  "setting.cleanup.legacy_desc": "data.json 에서 현재 버전이 사용하지 않는 다음 필드를 발견했습니다：${fields}。정리하면 이 필드들이 로컬 설정에서 제거됩니다. 이 필드에 의존하는 구버전 서버를 아직 사용 중이라면 「유지」를 선택하세요. 확실하지 않으면 유지가 더 안전합니다.",
+  "setting.cleanup.legacy_confirm": "정리",
+  "setting.cleanup.legacy_keep": "유지",
+  "setting.cleanup.legacy_success": "구버전 잔존 설정이 정리되었습니다",
 };
